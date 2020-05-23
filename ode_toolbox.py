@@ -11,9 +11,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class ODE:
-    
-    def __init__(self,RHS,x0,xend,y0):
-        self.__RHS = RHS
+    eps     = .1e-5 # error tolerance for newton method (can be changed from outside)
+    itermax = 100   # maximum iteration number for newton method (can be changed from outside)
+    def __init__(self,x0,xend,y0,RHS,DRHS=None):
+        self.__RHS  = RHS
+        self.__DRHS = DRHS
         self.__y0   = y0
         if x0 < xend:
             self.__x0   = x0
@@ -27,7 +29,7 @@ class ODE:
             # TODO: Fehlermeldung!
         self.solution = []
           
-    def directionField(self,xmin,xmax,ymin,ymax,nx=20,ny=20):
+    def directionField(self,xmin,xmax,ymin,ymax,nx=25,ny=25):
         if xmin>xmax:
             print("Warning: In method 'directionField' xmin greater than xmax!\n It has been switched.")
             tmp = xmin
@@ -49,6 +51,24 @@ class ODE:
         plt.ylabel('y')
         plt.show()
     
+    ###############################################################################
+    
+    def NewtonMethod(self,func,Dfunc,y_k0,m):
+            if abs(func(y_k0))<self.eps:
+                return y_k0
+            else:
+                y_k = y_k0
+                for i in range(self.itermax):
+                    y_k = y_k - func(y_k)/Dfunc(y_k)
+                    if abs(func(y_k))<self.eps:
+                        return y_k
+                    
+                print("Warning: Newton method has reached iteration limit for point number",m)
+                print("Last calculated y was given back to implicit method.")
+                return y_k
+            
+    ###############################################################################
+    
     def explicitEuler(self,n):
         xgrid = np.linspace(self.__x0,self.__xend,n)
         ygrid = np.linspace(0,0,n)
@@ -58,7 +78,38 @@ class ODE:
             print("Progress: %6.2f %%" % (100*(k+1)/(n-1)),end='\r')
             ygrid[k+1] = ygrid[k]+h*self.__RHS(xgrid[k],ygrid[k])
         self.solution.append([xgrid,ygrid,'expl.E, n='+str(n)])
-            
+        
+    def implicitEuler(self,n):
+        if not self.__DRHS:
+            print("There is no derivative (in y) of right hand side 'f'!\nImplicit Method not possible to proceed.")
+            return
+        xgrid = np.linspace(self.__x0,self.__xend,n)
+        ygrid = np.linspace(0,0,n)
+        ygrid[0] = self.__y0
+        h = (self.__xend-self.__x0)/(n-1)
+        for k in range(n-1):
+            print("Progress: %6.2f %%" % (100*(k+1)/(n-1)),end='\r')
+            F  = lambda y: ygrid[k]-y+h*self.__RHS(xgrid[k+1],y)
+            DF = lambda y: h*self.__DRHS(xgrid[k+1],y)-1
+            ygrid[k+1] = self.NewtonMethod(F,DF,ygrid[k],k)
+        self.solution.append([xgrid,ygrid,'impl.E, n='+str(n)])
+        
+    def implicitTrapez(self,n):
+        if not self.__DRHS:
+            print("There is no derivative (in y) of right hand side 'f'!\nImplicit Method not possible to proceed.")
+            return
+        xgrid = np.linspace(self.__x0,self.__xend,n)
+        ygrid = np.linspace(0,0,n)
+        ygrid[0] = self.__y0
+        h = (self.__xend-self.__x0)/(n-1)
+        for k in range(n-1):
+            print("Progress: %6.2f %%" % (100*(k+1)/(n-1)),end='\r')
+            F  = lambda y: ygrid[k]-y+h*self.__RHS(xgrid[k+1],y)
+            DF = lambda y: h*self.__DRHS(xgrid[k+1],y)-1
+            ygrid[k+1] = ygrid[k] + 0.5*h*(self.__RHS(xgrid[k],ygrid[k]) +
+                                           self.__RHS(xgrid[k],self.NewtonMethod(F,DF,ygrid[k],k)))
+        self.solution.append([xgrid,ygrid,'impl.Trapez, n='+str(n)])
+    
     def RK4(self,n):
         xgrid = np.linspace(self.__x0,self.__xend,n)
         ygrid = np.linspace(0,0,n)
@@ -78,10 +129,16 @@ class ODE:
             self.explicitEuler(n)
         elif method=='RK4':
             self.RK4(n)
+        elif method=='implE':
+            self.implicitEuler(n)
+        elif method=='implT':
+            self.implicitTrapez(n)
         else:
             print("Method not defined!\nYou can choose between:")
-            print(" - explicit Euler Method (type: 'explE')")
-            print(" - explicit Runge-Kutta Method (type: 'RK4')")
+            print(" - explicit Euler Method (enter: 'explE')")
+            print(" - explicit Runge-Kutta Method (enter: 'RK4')")
+            print(" - implicit Euler Method (enter: 'implE')")
+            print(" - implicit Trapez Method (enter: 'implT')")
             
     def show(self,directions='off'):
         colors = ['red','blue','green','gold','darkorange','cyan']
