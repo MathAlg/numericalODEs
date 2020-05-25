@@ -1,0 +1,9 @@
+# Grundlagen:
+# *.txt ignoriert alle txt-Dateien
+# /*.txt ignoriert alle txt-Dateien aus dem root-Verzeichnis
+# !readme.txt ignoriert die readme.txt NICHT (Ausnahme von der Regel)
+# myProject/bin/ ignoriert alle Dateien im Verzeichnis myProject/bin
+# myProject/**/*.suo ignoriert alle .suo-Dateien im myProject-Verzeichnis inkl. Unterverzeichnisse
+#################################
+__pycache__/
+.ipynb_checkpoints/
